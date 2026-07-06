@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#fbf3ea" />
+  <meta name="description" content="基于 Three.js 与 WebXR 的 Apple Vision Pro 弱视友好空间视觉迷宫原型。" />
+  <title>Stereo Path｜视界寻径</title>
+  <link rel="stylesheet" href="./style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <main id="app" aria-label="Stereo Path 视界寻径游戏">
+    <div id="webgl-root" aria-hidden="true"></div>
+
+    <section id="landing" class="landing-panel" aria-labelledby="title">
+      <div class="landing-art" aria-hidden="true">
+        <span class="shape shape-circle cyan"></span>
+        <span class="shape shape-circle magenta"></span>
+        <span class="shape shape-square orange"></span>
+        <span class="shape shape-triangle green"></span>
+        <span class="dot-grid"></span>
+      </div>
+
+      <div class="eyebrow">APPLE VISION PRO · THREE.JS · WEBXR</div>
+      <h1 id="title"><span>Stereo Path</span><br />视界寻径</h1>
+      <p class="lead">
+        一个自动前进、只需左右选择的立体视觉迷宫。跟随<strong>蓝色圆点标志</strong>，通过高架桥、坡道与下沉隧道，在 9 个岔路口中抵达出口。
+      </p>
+
+      <div class="mode-section" aria-labelledby="background-title">
+        <h2 id="background-title">选择视觉背景</h2>
+        <div class="mode-grid" role="radiogroup" aria-label="视觉背景">
+          <button class="mode-card active" data-mode="geometric" role="radio" aria-checked="true">
+            <span class="mode-preview preview-geometric"></span>
+            <strong>生活几何</strong>
+            <small>彩色几何环境</small>
+          </button>
+          <button class="mode-card" data-mode="stripes" role="radio" aria-checked="false">
+            <span class="mode-preview preview-stripes"></span>
+            <strong>黑白条纹</strong>
+            <small>外围缓慢移动</small>
+          </button>
+          <button class="mode-card" data-mode="checker" role="radio" aria-checked="false">
+            <span class="mode-preview preview-checker"></span>
+            <strong>黑白格纹</strong>
+            <small>大尺度棋盘格</small>
+          </button>
+          <button class="mode-card" data-mode="redgreen" role="radio" aria-checked="false">
+            <span class="mode-preview preview-redgreen"></span>
+            <strong>红绿格纹</strong>
+            <small>低饱和对比</small>
+          </button>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <label class="speed-setting" for="speed-range">
+          <span>前进速度</span>
+          <input id="speed-range" type="range" min="0.6" max="4" step="0.1" value="1.8" />
+          <output id="speed-output">1.8 m/s</output>
+        </label>
+        <label class="toggle-setting">
+          <input id="reduced-motion" type="checkbox" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+          <span>减少动态效果</span>
+        </label>
+      </div>
+
+      <div class="actions">
+        <button id="start-desktop" class="primary-action">电脑预览 <kbd>A</kbd><kbd>D</kbd></button>
+        <div id="vr-slot" class="vr-slot"></div>
+      </div>
+
+      <p class="safety-note">
+        这是视觉交互研究原型，不用于诊断或替代弱视治疗。使用中如出现眼痛、头晕、恶心、视物模糊或复视，请立即停止。
+      </p>
+    </section>
+
+    <section id="desktop-hud" class="hud hidden" aria-live="polite">
+      <div class="hud-top">
+        <div class="brand-pill"><b>STEREO PATH</b><span id="movement-status">自动前进中 · 1.8 m/s</span></div>
+        <div class="progress-wrap" aria-label="关卡进度">
+          <span id="progress-label">0 / 9</span>
+          <div class="progress-track"><span id="progress-bar"></span></div>
+        </div>
+        <button id="pause-button" class="icon-button" aria-label="暂停游戏">Ⅱ</button>
+      </div>
+
+      <aside class="map-card" aria-label="二维迷宫地图">
+        <div class="map-card-title"><span>MAP</span><b>路径地图</b></div>
+        <canvas id="map-canvas" width="320" height="320"></canvas>
+        <div class="map-legend"><i class="current-dot"></i>当前位置 <i class="exit-dot"></i>出口</div>
+      </aside>
+
+      <div id="choice-prompt" class="choice-prompt hidden">
+        <small>岔路口已到达</small>
+        <strong>跟随蓝色圆点标志</strong>
+        <span>左手捏合 / <kbd>A</kbd>　或　右手捏合 / <kbd>D</kbd></span>
+      </div>
+
+      <div class="desktop-controls" aria-label="方向控制">
+        <button id="left-button" class="direction-button left" aria-label="选择左边"><span>←</span><small>LEFT · A</small></button>
+        <button id="right-button" class="direction-button right" aria-label="选择右边"><span>→</span><small>RIGHT · D</small></button>
+      </div>
+
+      <div class="hud-bottom">
+        <label class="hud-speed-setting" for="in-game-speed">速度
+          <input id="in-game-speed" type="range" min="0.6" max="4" step="0.1" value="1.8" />
+          <output id="in-game-speed-output">1.8 m/s</output>
+        </label>
+        <label>背景
+          <select id="in-game-mode">
+            <option value="geometric">生活几何</option>
+            <option value="stripes">黑白条纹</option>
+            <option value="checker">黑白格纹</option>
+            <option value="redgreen">红绿格纹</option>
+          </select>
+        </label>
+        <button id="motion-button" class="small-button">减少动态：关</button>
+        <span class="speed-hint"><kbd>W</kbd>/<kbd>S</kbd> 调速</span>
+        <button id="restart-button" class="small-button">重新开始</button>
+      </div>
+    </section>
+
+    <section id="pause-panel" class="modal-panel hidden" aria-modal="true" role="dialog" aria-labelledby="pause-title">
+      <h2 id="pause-title">已暂停</h2>
+      <p>放松眼睛，准备好后继续。</p>
+      <button id="resume-button" class="primary-action">继续游戏</button>
+    </section>
+
+    <section id="result-panel" class="modal-panel result-panel hidden" aria-modal="true" role="dialog" aria-labelledby="result-title">
+      <div class="result-orbit" aria-hidden="true"><span></span><i></i></div>
+      <div class="eyebrow">LEVEL COMPLETE</div>
+      <h2 id="result-title">抵达光之出口</h2>
+      <div class="result-grid">
+        <div><b id="result-time">00:00</b><span>完成时间</span></div>
+        <div><b id="result-errors">0</b><span>重新尝试</span></div>
+        <div><b id="result-pauses">0</b><span>暂停次数</span></div>
+        <div><b id="result-mode">生活几何</b><span>视觉背景</span></div>
+      </div>
+      <p>结果仅描述本次交互表现，不构成视力或医疗判断。</p>
+      <button id="play-again" class="primary-action">再走一次</button>
+    </section>
+
+    <div id="toast" class="toast hidden" role="status"></div>
+    <div id="loading" class="loading">正在构建立体迷宫…</div>
+    <noscript>本原型需要启用 JavaScript。</noscript>
+  </main>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
