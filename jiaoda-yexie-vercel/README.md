@@ -16,7 +16,7 @@
 后端仍使用 Google Apps Script + Google Sheet。前端已配置接口：
 
 ```text
-https://script.google.com/macros/s/AKfycbzcDuIaRepTV9IECh6u3-YojYdDg5lO3zG6SD8h3X__-2TLO_I_8GAv2vYrW4xz7O43HA/exec
+https://script.google.com/macros/s/AKfycbz4DXON7DMwwp2tApCgu4Or10w-xNIcgf8m8uboDUIMUTJ3xuSMzyMvqSet1cAjbO8JvQ/exec
 ```
 
 公共仓库里不要提交真实管理员密码。管理员密码只应保存在 Apps Script 后端中。
